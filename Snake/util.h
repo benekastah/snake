@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+double time_since_start();
+
 char* read_file(const char* fname);
 
 float scale(float min1, float max1, float min2, float max2, float val);

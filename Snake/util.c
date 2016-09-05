@@ -1,10 +1,25 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+#include <windows.h>
+
 #include <GL/glew.h>
 #include <GL/GL.h>
 
 #include "util.h"
+
+double time_since_start() {
+	static int initialized = 0;
+	static LARGE_INTEGER start, freq;
+	LARGE_INTEGER now;
+	if (!initialized) {
+		initialized = 1;
+		QueryPerformanceCounter(&start);
+		QueryPerformanceFrequency(&freq);
+	}
+	QueryPerformanceCounter(&now);
+	return (double)(now.QuadPart - start.QuadPart) / freq.QuadPart;
+}
 
 char* read_file(const char* fname) {
 	char* buffer = NULL;
@@ -42,9 +57,7 @@ float scale(float min1, float max1, float min2, float max2, float val) {
 }
 
 float randf_btwn(float min, float max) {
-	int r = rand();
-	float result = scale(0, RAND_MAX, min, max, (float)r);
-	return result;
+	return scale(0, RAND_MAX, min, max, (float)rand());
 }
 
 void print_gl_errors() {

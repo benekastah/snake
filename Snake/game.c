@@ -5,8 +5,6 @@
 #include <stdbool.h>
 #include <math.h>
 
-#include <windows.h>
-
 #include "game.h"
 #include "util.h"
 
@@ -18,17 +16,64 @@ GLenum glErr;
 GLuint snakeShaderProgram;
 GLuint appleShaderProgram;
 
-double time_since_start() {
-	static int initialized = 0;
-	static LARGE_INTEGER start, freq;
-	LARGE_INTEGER now;
-	if (!initialized) {
-		initialized = 1;
-		QueryPerformanceCounter(&start);
-		QueryPerformanceFrequency(&freq);
-	}
-	QueryPerformanceCounter(&now);
-	return (double)(now.QuadPart - start.QuadPart) / freq.QuadPart;
+void opengl_setup() {
+	// Create Vertex Array Object
+    glGenVertexArrays(1, &vao);
+    glBindVertexArray(vao);
+
+    // Create a Vertex Buffer Object
+    glGenBuffers(1, &vbo);
+
+	// Create an element array
+	glGenBuffers(1, &ebo);
+
+    glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+	char* shaderSrc;
+
+	shaderSrc = read_file("snake.vertexshader");
+	GLuint snakeVertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(snakeVertexShader, 1, &shaderSrc, NULL);
+	glCompileShader(snakeVertexShader);
+	free(shaderSrc);
+
+	shaderSrc = read_file("snake.fragmentshader");
+	GLuint snakeFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(snakeFragmentShader, 1, &shaderSrc, NULL);
+	glCompileShader(snakeFragmentShader);
+	free(shaderSrc);
+
+	// Link the vertex and fragment shader into a shader program
+	snakeShaderProgram = glCreateProgram();
+	glAttachShader(snakeShaderProgram, snakeVertexShader);
+	glAttachShader(snakeShaderProgram, snakeFragmentShader);
+	glBindFragDataLocation(snakeShaderProgram, 0, "outColor");
+	glLinkProgram(snakeShaderProgram);
+
+	shaderSrc = read_file("apple.vertexshader");
+	GLuint appleVertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(appleVertexShader, 1, &shaderSrc, NULL);
+	glCompileShader(appleVertexShader);
+	free(shaderSrc);
+
+	shaderSrc = read_file("apple.fragmentshader");
+	GLuint appleFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(appleFragmentShader, 1, &shaderSrc, NULL);
+	glCompileShader(appleFragmentShader);
+	free(shaderSrc);
+
+	// Link the vertex and fragment shader into a shader program
+	appleShaderProgram = glCreateProgram();
+	glAttachShader(appleShaderProgram, appleVertexShader);
+	glAttachShader(appleShaderProgram, appleFragmentShader);
+	glBindFragDataLocation(appleShaderProgram, 0, "outColor");
+	glLinkProgram(appleShaderProgram);
+
+	// Specify the layout of the vertex data
+	GLint posAttrib = glGetAttribLocation(snakeShaderProgram, "position");
+	glEnableVertexAttribArray(posAttrib);
+	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE,
+		2 * sizeof(float), 0);
 }
 
 Point get_cell_size() {
@@ -45,12 +90,6 @@ Point scale_screen(Point p) {
 		scale(0, BOARD_WIDTH, -1, 1, p.x),
 		scale(0, BOARD_HEIGHT, -1, 1, p.y)
 	};
-}
-
-Point rounded_point(Point p) {
-	p.x = roundf(p.x);
-	p.y = roundf(p.y);
-	return p;
 }
 
 void update_state(GameState* state, const double t, const double dt) {
@@ -135,66 +174,6 @@ void update_state(GameState* state, const double t, const double dt) {
 			snake_rset_point(snake, 0, tail1);
 		}
 	}
-}
-
-void opengl_setup() {
-	// Create Vertex Array Object
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
-
-    // Create a Vertex Buffer Object
-    glGenBuffers(1, &vbo);
-
-	// Create an element array
-	glGenBuffers(1, &ebo);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-
-	char* shaderSrc;
-
-	shaderSrc = read_file("snake.vertexshader");
-	GLuint snakeVertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(snakeVertexShader, 1, &shaderSrc, NULL);
-	glCompileShader(snakeVertexShader);
-	free(shaderSrc);
-
-	shaderSrc = read_file("snake.fragmentshader");
-	GLuint snakeFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(snakeFragmentShader, 1, &shaderSrc, NULL);
-	glCompileShader(snakeFragmentShader);
-	free(shaderSrc);
-
-	// Link the vertex and fragment shader into a shader program
-	snakeShaderProgram = glCreateProgram();
-	glAttachShader(snakeShaderProgram, snakeVertexShader);
-	glAttachShader(snakeShaderProgram, snakeFragmentShader);
-	glBindFragDataLocation(snakeShaderProgram, 0, "outColor");
-	glLinkProgram(snakeShaderProgram);
-
-	shaderSrc = read_file("apple.vertexshader");
-	GLuint appleVertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(appleVertexShader, 1, &shaderSrc, NULL);
-	glCompileShader(appleVertexShader);
-	free(shaderSrc);
-
-	shaderSrc = read_file("apple.fragmentshader");
-	GLuint appleFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(appleFragmentShader, 1, &shaderSrc, NULL);
-	glCompileShader(appleFragmentShader);
-	free(shaderSrc);
-
-	// Link the vertex and fragment shader into a shader program
-	appleShaderProgram = glCreateProgram();
-	glAttachShader(appleShaderProgram, appleVertexShader);
-	glAttachShader(appleShaderProgram, appleFragmentShader);
-	glBindFragDataLocation(appleShaderProgram, 0, "outColor");
-	glLinkProgram(appleShaderProgram);
-
-	// Specify the layout of the vertex data
-	GLint posAttrib = glGetAttribLocation(snakeShaderProgram, "position");
-	glEnableVertexAttribArray(posAttrib);
-	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE,
-		2 * sizeof(float), 0);
 }
 
 void draw_rectangle(Point a, Point b) {

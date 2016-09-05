@@ -11,6 +11,7 @@ typedef struct { float x; float y; } Point;
 
 bool points_eq(Point a, Point b);
 Point rand_point();
+Point rounded_point(Point p);
 
 typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
 

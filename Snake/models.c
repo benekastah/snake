@@ -15,6 +15,12 @@ Point rand_point() {
 	};
 }
 
+Point rounded_point(Point p) {
+	p.x = roundf(p.x);
+	p.y = roundf(p.y);
+	return p;
+}
+
 Snake make_snake() {
 	Snake snake;
 	snake.lines[0] = (Point) { 3, 7 };
