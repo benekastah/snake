@@ -43,10 +43,19 @@ float scale(float min1, float max1, float min2, float max2, float val) {
 	return ((val - min1) * ratio) + min2;
 }
 
-Pointf scale_screen(Point p) {
-	return (Pointf) {
-		scale(0, (float)BOARD_WIDTH, -1, 1, (float)p.x),
-		scale(0, (float)BOARD_HEIGHT, -1, 1, (float)p.y)
+Point get_cell_size() {
+	static Point size = { 0, 0 };
+	if (size.x == 0 && size.y == 0) {
+		size.x = scale(0, BOARD_WIDTH, 0, 2, 1);
+		size.y = scale(0, BOARD_HEIGHT, 0, 2, 1);
+	}
+	return size;
+}
+
+Point scale_screen(Point p) {
+	return (Point) {
+		scale(0, BOARD_WIDTH, -1, 1, p.x),
+		scale(0, BOARD_HEIGHT, -1, 1, p.y)
 	};
 }
 
@@ -54,17 +63,29 @@ void update_state(GameState* state, const double t, const double dt) {
 	Direction dir = state->snake.direction;
 	Snake* snake = &state->snake;
 
-	if (glfwGetKey(state->window, GLFW_KEY_UP) == GLFW_PRESS && dir != DOWN) {
-		snake->direction = UP;
-	} else if (glfwGetKey(state->window, GLFW_KEY_DOWN) == GLFW_PRESS && dir != UP) {
-		snake->direction = DOWN;
-	} else if (glfwGetKey(state->window, GLFW_KEY_LEFT) == GLFW_PRESS && dir != RIGHT) {
-		snake->direction = LEFT;
-	} else if (glfwGetKey(state->window, GLFW_KEY_RIGHT) == GLFW_PRESS && dir != LEFT) {
-		snake->direction = RIGHT;
+	if (glfwGetKey(state->window, GLFW_KEY_UP) == GLFW_PRESS) {
+		if (dir == LEFT || dir == RIGHT) {
+			snake_unshift_point(snake, snake_get_point(*snake, 0));
+			snake->direction = UP;
+		}
+	} else if (glfwGetKey(state->window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+		if (dir == LEFT || dir == RIGHT) {
+			snake_unshift_point(snake, snake_get_point(*snake, 0));
+			snake->direction = DOWN;
+		}
+	} else if (glfwGetKey(state->window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+		if (dir == DOWN || dir == UP) {
+			snake_unshift_point(snake, snake_get_point(*snake, 0));
+			snake->direction = LEFT;
+		}
+	} else if (glfwGetKey(state->window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+		if (dir == DOWN || dir == UP) {
+			snake_unshift_point(snake, snake_get_point(*snake, 0));
+			snake->direction = RIGHT;
+		}
 	}
 
-	if (floorf((float)t) == (float)t) {
+	if (floorf((float)t*5) == (float)t*5) {
 		Point a, b;
 		a = snake_get_point(*snake, 0);
 		if (dir == UP) {
@@ -81,15 +102,16 @@ void update_state(GameState* state, const double t, const double dt) {
 		a = snake_rget_point(*snake, 0);
 		b = snake_rget_point(*snake, 1);
 		if (a.x != b.x) {
-			a.y += a.y < b.y ? -1 : 1;
+			a.x += a.x < b.x ? 1 : -1;
 		} else if (a.y != b.y) {
-			a.x += a.y < b.x ? -1 : 1;
+			a.y += a.y < b.y ? 1 : -1;
 		}
 		if (a.x == b.x && a.y == b.y) {
 			snake_pop_point(snake);
 		} else {
 			snake_rset_point(snake, 0, a);
 		}
+		int x = 1;
 	}
 }
 
@@ -141,10 +163,10 @@ void draw_rectangle(Point a, Point b) {
 		h = scale(0, BOARD_HEIGHT, 0, 2, 1);
 	}
 	
-	Pointf a1 = scale_screen(a);
-	Pointf a2 = (Pointf) { a1.x + w, a1.y + h };
-	Pointf b1 = scale_screen(b);
-	Pointf b2 = (Pointf) { b1.x + w, b1.y + h };
+	Point a1 = scale_screen(a);
+	Point a2 = (Point) { a1.x + w, a1.y + h };
+	Point b1 = scale_screen(b);
+	Point b2 = (Point) { b1.x + w, b1.y + h };
 
 	GLuint elements[6] = { 0, 1, 2, 2, 3, 0 };
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);

@@ -5,8 +5,7 @@
 #define SNAKE_MAX_POINTS (BOARD_HEIGHT*BOARD_WIDTH)
 
 // MISC
-typedef struct { int x; int y; } Point;
-typedef struct { float x; float y; } Pointf;
+typedef struct { float x; float y; } Point;
 typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
 
 // SNEK
