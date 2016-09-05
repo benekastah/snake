@@ -7,14 +7,26 @@
 // MISC
 typedef struct { int x; int y; } Point;
 typedef struct { float x; float y; } Pointf;
+typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
 
 // SNEK
 typedef struct {
 	Point lines[SNAKE_MAX_POINTS];
-	int length;
+	unsigned int length;
+	unsigned int start;
+	Direction direction;
 } Snake;
 
 Snake make_snake();
+
+Point snake_get_point(Snake snake, unsigned int i);
+Point snake_rget_point(Snake snake, unsigned int i);
+void snake_set_point(Snake* snake, unsigned int i, Point p);
+void snake_rset_point(Snake* snake, unsigned int i, Point p);
+Point snake_shift_point(Snake* snake);
+Point snake_pop_point(Snake* snake);
+void snake_push_point(Snake* snake, Point p);
+void snake_unshift_point(Snake* snake, Point p);
 
 
 // APPLE

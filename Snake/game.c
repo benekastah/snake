@@ -15,9 +15,6 @@ GLuint ebo;
 GLuint vbo;
 GLenum glErr;
 
-float* snakeVertices;
-GLuint* snakeElements;
-
 double time_since_start() {
 	static int initialized = 0;
 	static LARGE_INTEGER start, freq;
@@ -54,6 +51,46 @@ Pointf scale_screen(Point p) {
 }
 
 void update_state(GameState* state, const double t, const double dt) {
+	Direction dir = state->snake.direction;
+	Snake* snake = &state->snake;
+
+	if (glfwGetKey(state->window, GLFW_KEY_UP) == GLFW_PRESS && dir != DOWN) {
+		snake->direction = UP;
+	} else if (glfwGetKey(state->window, GLFW_KEY_DOWN) == GLFW_PRESS && dir != UP) {
+		snake->direction = DOWN;
+	} else if (glfwGetKey(state->window, GLFW_KEY_LEFT) == GLFW_PRESS && dir != RIGHT) {
+		snake->direction = LEFT;
+	} else if (glfwGetKey(state->window, GLFW_KEY_RIGHT) == GLFW_PRESS && dir != LEFT) {
+		snake->direction = RIGHT;
+	}
+
+	if (floorf((float)t) == (float)t) {
+		Point a, b;
+		a = snake_get_point(*snake, 0);
+		if (dir == UP) {
+			a.y += 1;
+		} else if (dir == DOWN) {
+			a.y -= 1;
+		} else if (dir == LEFT) {
+			a.x -= 1;
+		} else if (dir == RIGHT) {
+			a.x += 1;
+		}
+		snake_set_point(snake, 0, a);
+
+		a = snake_rget_point(*snake, 0);
+		b = snake_rget_point(*snake, 1);
+		if (a.x != b.x) {
+			a.y += a.y < b.y ? -1 : 1;
+		} else if (a.y != b.y) {
+			a.x += a.y < b.x ? -1 : 1;
+		}
+		if (a.x == b.x && a.y == b.y) {
+			snake_pop_point(snake);
+		} else {
+			snake_rset_point(snake, 0, a);
+		}
+	}
 }
 
 void opengl_setup() {
@@ -96,47 +133,54 @@ void opengl_setup() {
 		2 * sizeof(float), 0);
 }
 
+void draw_rectangle(Point a, Point b) {
+	static float w = 0;
+	static float h = 0;
+	if (w == 0) {
+		w = scale(0, BOARD_WIDTH, 0, 2, 1);
+		h = scale(0, BOARD_HEIGHT, 0, 2, 1);
+	}
+	
+	Pointf a1 = scale_screen(a);
+	Pointf a2 = (Pointf) { a1.x + w, a1.y + h };
+	Pointf b1 = scale_screen(b);
+	Pointf b2 = (Pointf) { b1.x + w, b1.y + h };
+
+	GLuint elements[6] = { 0, 1, 2, 2, 3, 0 };
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(elements), elements, GL_STREAM_DRAW);
+
+	float vertices[2 * 4] = {
+		minf(a1.x, b1.x), minf(a1.y, b1.y),
+		maxf(a2.x, b2.x), minf(a1.y, b1.y),
+		maxf(a2.x, b2.x), maxf(a2.y, b2.y),
+		minf(a1.x, b1.x), maxf(a2.y, b2.y)
+	};
+	glBindBuffer(GL_ARRAY_BUFFER, vbo);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STREAM_DRAW);
+
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+}
+
+void render_snake(Snake snake) {
+	float snake_w = scale(0, BOARD_WIDTH, 0, 2, 1);
+	float snake_h = scale(0, BOARD_HEIGHT, 0, 2, 1);
+	for (unsigned int i = 1; i < snake.length; i++) {
+		draw_rectangle(snake_get_point(snake, i - 1), snake_get_point(snake, i));
+	}
+}
+
+void render_apple(Apple apple) {
+	draw_rectangle(apple.pos, apple.pos);
+}
+
 void render_frame(GameState state) {
 	// Clear the screen to black
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	float snake_w = scale(0, BOARD_WIDTH, 0, 2, 1);
-	float snake_h = scale(0, BOARD_HEIGHT, 0, 2, 1);
-
-	int snakeVerticesLengthPerLine = 2 * 4;
-	int snakeVerticesSize = sizeof(float) * snakeVerticesLengthPerLine * (state.snake.length - 1);
-	snakeVertices = realloc(snakeVertices, snakeVerticesSize);
-	int snakeElementsLengthPerLine = 6;
-	int snakeElementsSize = sizeof(GLuint) * snakeElementsLengthPerLine * (state.snake.length - 1);
-	snakeElements = realloc(snakeElements, snakeElementsSize);
-
-	Pointf a1, a2, b1, b2;
-	for (int i = 1; i < state.snake.length; i++) {
-		a1 = scale_screen(state.snake.lines[i - 1]);
-		a2 = (Pointf) { a1.x + snake_w, a1.y + snake_h };
-		b1 = scale_screen(state.snake.lines[i]);
-		b2 = (Pointf) { b1.x + snake_w, b1.y + snake_h };
-
-		GLuint elements[] = { 0, 1, 2, 2, 3, 0 };
-		memcpy(snakeElements + (i - 1) * snakeElementsLengthPerLine, &elements, sizeof(elements));
-
-		float vertices[] = {
-			minf(a1.x, b1.x), minf(a1.y, b1.y),
-			maxf(a2.x, b2.x), minf(a1.y, b1.y),
-			maxf(a2.x, b2.x), maxf(a2.y, b2.y),
-			minf(a1.x, b1.x), maxf(a2.y, b2.y)
-		};
-		memcpy(snakeVertices + (i - 1) * snakeVerticesLengthPerLine, &vertices, sizeof(vertices));
-	}
-
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-	glBufferData(GL_ARRAY_BUFFER, snakeVerticesSize, snakeVertices, GL_STREAM_DRAW);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, snakeElementsSize, snakeElements, GL_STREAM_DRAW);
-
-	glDrawElements(GL_TRIANGLES, (state.snake.length - 1) * 6, GL_UNSIGNED_INT, 0);
+	render_snake(state.snake);
+	render_apple(state.apple);
 
 	glfwSwapBuffers(state.window);
 }
@@ -150,6 +194,7 @@ int game_loop(GameState state) {
 
 	bool quit = false;
 	while (!quit) {
+		glfwPollEvents();
 		double newTime = time_since_start();
 		double frameTime = newTime - currentTime;
 		currentTime = newTime;
@@ -164,7 +209,6 @@ int game_loop(GameState state) {
 
 		render_frame(state);
 
-		glfwPollEvents();
 		quit = glfwGetKey(state.window, GLFW_KEY_ESCAPE) == GLFW_PRESS || glfwWindowShouldClose(state.window) != 0;
 	}
 	return 0;
@@ -197,9 +241,6 @@ GLFWwindow* getWindow() {
 }
 
 int main(void) {
-	snakeVertices = malloc(1);
-	snakeElements = malloc(1);
-
 	GLFWwindow* window = getWindow();
 	if (window == NULL) {
 		return -1;
@@ -222,7 +263,5 @@ int main(void) {
 	int result = game_loop(state);
 
 	glfwTerminate();
-	free(snakeVertices);
-	free(snakeElements);
 	return result;
 }
