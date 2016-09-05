@@ -1,11 +1,17 @@
 #pragma once
 
+#include <stdbool.h>
+
 #define BOARD_HEIGHT 100
 #define BOARD_WIDTH 100
 #define SNAKE_MAX_POINTS (BOARD_HEIGHT*BOARD_WIDTH)
 
 // MISC
 typedef struct { float x; float y; } Point;
+
+bool points_eq(Point a, Point b);
+Point rand_point();
+
 typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
 
 // SNEK
@@ -14,6 +20,7 @@ typedef struct {
 	unsigned int length;
 	unsigned int start;
 	Direction direction;
+	Direction nextDirection;
 } Snake;
 
 Snake make_snake();

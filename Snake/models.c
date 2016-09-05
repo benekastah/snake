@@ -1,6 +1,19 @@
 #include <stdlib.h>
+#include <math.h>
 
 #include "models.h"
+#include "util.h"
+
+bool points_eq(Point a, Point b) {
+	return a.x == b.x && a.y == b.y;
+}
+
+Point rand_point() {
+	return (Point) {
+		floorf(randf_btwn(0, BOARD_WIDTH)),
+		floorf(randf_btwn(0, BOARD_HEIGHT))
+	};
+}
 
 Snake make_snake() {
 	Snake snake;
@@ -9,6 +22,7 @@ Snake make_snake() {
 	snake.start = 0;
 	snake.length = 2;
 	snake.direction = UP;
+	snake.nextDirection = UP;
 	return snake;
 }
 
@@ -33,7 +47,7 @@ void snake_set_point(Snake* snake, unsigned int i, Point p) {
 }
 
 void snake_rset_point(Snake* snake, unsigned int i, Point p) {
-	return snake_set_point(snake, snake->length - 1 - i, p);
+	snake_set_point(snake, snake->length - 1 - i, p);
 }
 
 void snake_push_point(Snake* snake, Point p) {
@@ -73,6 +87,6 @@ Point snake_pop_point(Snake* snake) {
 
 Apple make_apple() {
 	Apple apple;
-	apple.pos = (Point) { 25, 25 };
+	apple.pos = rand_point();
 	return apple;
 }

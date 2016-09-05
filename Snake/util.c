@@ -1,3 +1,4 @@
+#include <stdlib.h>
 #include <stdarg.h>
 
 #include <GL/glew.h>
@@ -31,6 +32,19 @@ float minf(float a, float b) {
 
 float maxf(float a, float b) {
 	return a > b ? a : b;
+}
+
+float scale(float min1, float max1, float min2, float max2, float val) {
+	float d1 = max1 - min1;
+	float d2 = max2 - min2;
+	float ratio = d2 / d1;
+	return ((val - min1) * ratio) + min2;
+}
+
+float randf_btwn(float min, float max) {
+	int r = rand();
+	float result = scale(0, RAND_MAX, min, max, (float)r);
+	return result;
 }
 
 void print_gl_errors() {
