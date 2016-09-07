@@ -15,6 +15,32 @@ GLenum glErr;
 
 GLuint snakeShaderProgram;
 GLuint appleShaderProgram;
+GLuint arenaShaderProgram;
+
+GLuint create_shader_program(char* vertexShaderFile, char* fragmentShaderFile) {
+	char* shaderSrc;
+
+	shaderSrc = read_file(vertexShaderFile);
+	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShader, 1, &shaderSrc, NULL);
+	glCompileShader(vertexShader);
+	free(shaderSrc);
+
+	shaderSrc = read_file("apple.fragmentshader");
+	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShader, 1, &shaderSrc, NULL);
+	glCompileShader(fragmentShader);
+	free(shaderSrc);
+
+	// Link the vertex and fragment shader into a shader program
+	GLuint shader = glCreateProgram();
+	glAttachShader(shader, vertexShader);
+	glAttachShader(shader, fragmentShader);
+	glBindFragDataLocation(shader, 0, "outColor");
+	glLinkProgram(shader);
+
+	return shader;
+}
 
 void opengl_setup() {
 	// Create Vertex Array Object
@@ -31,43 +57,9 @@ void opengl_setup() {
 
 	char* shaderSrc;
 
-	shaderSrc = read_file("snake.vertexshader");
-	GLuint snakeVertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(snakeVertexShader, 1, &shaderSrc, NULL);
-	glCompileShader(snakeVertexShader);
-	free(shaderSrc);
-
-	shaderSrc = read_file("snake.fragmentshader");
-	GLuint snakeFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(snakeFragmentShader, 1, &shaderSrc, NULL);
-	glCompileShader(snakeFragmentShader);
-	free(shaderSrc);
-
-	// Link the vertex and fragment shader into a shader program
-	snakeShaderProgram = glCreateProgram();
-	glAttachShader(snakeShaderProgram, snakeVertexShader);
-	glAttachShader(snakeShaderProgram, snakeFragmentShader);
-	glBindFragDataLocation(snakeShaderProgram, 0, "outColor");
-	glLinkProgram(snakeShaderProgram);
-
-	shaderSrc = read_file("apple.vertexshader");
-	GLuint appleVertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(appleVertexShader, 1, &shaderSrc, NULL);
-	glCompileShader(appleVertexShader);
-	free(shaderSrc);
-
-	shaderSrc = read_file("apple.fragmentshader");
-	GLuint appleFragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(appleFragmentShader, 1, &shaderSrc, NULL);
-	glCompileShader(appleFragmentShader);
-	free(shaderSrc);
-
-	// Link the vertex and fragment shader into a shader program
-	appleShaderProgram = glCreateProgram();
-	glAttachShader(appleShaderProgram, appleVertexShader);
-	glAttachShader(appleShaderProgram, appleFragmentShader);
-	glBindFragDataLocation(appleShaderProgram, 0, "outColor");
-	glLinkProgram(appleShaderProgram);
+	snakeShaderProgram = create_shader_program("snake.vertexshader", "snake.fragmentshader");
+	appleShaderProgram = create_shader_program("apple.vertexshader", "apple.fragmentshader");
+	arenaShaderProgram = create_shader_program("arena.vertexshader", "arena.fragmentshader");
 
 	// Specify the layout of the vertex data
 	GLint posAttrib = glGetAttribLocation(snakeShaderProgram, "position");
@@ -76,68 +68,131 @@ void opengl_setup() {
 		2 * sizeof(float), 0);
 }
 
-Point get_cell_size() {
-	static Point size = { 0, 0 };
-	if (size.x == 0 && size.y == 0) {
-		size.x = scale(0, BOARD_WIDTH, 0, 2, 1);
-		size.y = scale(0, BOARD_HEIGHT, 0, 2, 1);
+KeyState key_advance_state(KeyState ks) {
+	if (ks == UNPRESSED) {
+		return PRESSING;
+	} else {
+		return PRESSED;
 	}
-	return size;
+}
+
+Point arena[2];
+void set_arena(GLFWwindow* window, int width, int height) {
+	if (width == 0 && height == 0) {
+		glfwGetWindowSize(window, &width, &height);
+	}
+	float pad = 10;
+	float w = (float) width;
+	float h = (float) height;
+	arena[0] = (Point) {
+		w > h ? (w - h) / 2 : pad,
+		w > h ? pad : (h - w) / 2
+	};
+	arena[1] = (Point) {
+		w > h ? w - (w - h) / 2 : w - pad,
+		w > h ? h - pad : h - (h - w) / 2
+	};
+	arena[0] = scale_point((Point) { 0, 0 }, (Point) { w, h },
+		(Point) { -1, -1 }, (Point) { 1, 1 }, arena[0]);
+	arena[1] = scale_point((Point) { 0, 0 }, (Point) { w, h },
+		(Point) { -1, -1 }, (Point) { 1, 1 }, arena[1]);
 }
 
 Point scale_screen(Point p) {
 	return (Point) {
-		scale(0, BOARD_WIDTH, -1, 1, p.x),
-		scale(0, BOARD_HEIGHT, -1, 1, p.y)
+		scale(0, BOARD_WIDTH, arena[0].x, arena[1].x, p.x),
+		scale(0, BOARD_HEIGHT, arena[0].y, arena[1].y, p.y)
 	};
 }
 
-void update_state(GameState* state, const double t, const double dt) {
-	static float rate = 5.0f;
-	static float cycleT = 0;
-	static unsigned int snakeTailGrows = 0;
-	static unsigned int snakeTailGrowRate = 15;
-	Direction dir = state->snake.direction;
-	Snake* snake = &state->snake;
+bool detect_collision(Snake snake) {
+	Point head = snake_get_point(snake, 0);
 
-	cycleT += (float)dt;
+	// Out of bounds check
+	if (head.x < 0 || head.y < 0 || head.x > BOARD_WIDTH || head.y > BOARD_HEIGHT) {
+		return true;
+	}
 
-	if (glfwGetKey(state->window, GLFW_KEY_UP) == GLFW_PRESS) {
-		if (dir == LEFT || dir == RIGHT) {
-			snake->nextDirection = UP;
+	// Body collision check
+	Point a, b;
+	for (unsigned int i = 1; i < snake.length; i++) {
+		a = snake_get_point(snake, i - 1);
+		b = snake_get_point(snake, i);
+		if (points_eq(head, a) || points_eq(head, b)) {
+			continue;
 		}
-	} else if (glfwGetKey(state->window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-		if (dir == LEFT || dir == RIGHT) {
-			snake->nextDirection = DOWN;
-		}
-	} else if (glfwGetKey(state->window, GLFW_KEY_LEFT) == GLFW_PRESS) {
-		if (dir == DOWN || dir == UP) {
-			snake->nextDirection = LEFT;
-		}
-	} else if (glfwGetKey(state->window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
-		if (dir == DOWN || dir == UP) {
-			snake->nextDirection = RIGHT;
+		if (a.x == b.x && head.x == a.x) {
+			if (head.y >= minf(a.y, b.y) && head.y <= maxf(a.y, b.y)) {
+				return true;
+			}
+		} else if (a.y == b.y && head.y == a.y) {
+			if (head.x >= minf(a.x, b.x) && head.x <= maxf(a.x, b.x)) {
+				return true;
+			}
 		}
 	}
 
-	if (cycleT * rate >= 1) {
+	return false;
+}
+
+void update_state(GameState* state, const double t, const double dt) {
+	static float cycleT = 0;
+	Snake* snake = &state->snake;
+
+	cycleT += (float)dt;
+	if (cycleT * snake->rate >= 1) {
 		cycleT = 0;
-		if (snakeTailGrows > 0) {
-			snakeTailGrows -= 1;
+	}
+
+	state->keys.up = glfwGetKey(state->window, GLFW_KEY_UP) == GLFW_PRESS ?
+		key_advance_state(state->keys.up) : UNPRESSED;
+	state->keys.down = glfwGetKey(state->window, GLFW_KEY_DOWN) == GLFW_PRESS ?
+		key_advance_state(state->keys.down) : UNPRESSED;
+	state->keys.left = glfwGetKey(state->window, GLFW_KEY_LEFT) == GLFW_PRESS ?
+		key_advance_state(state->keys.left) : UNPRESSED;
+	state->keys.right = glfwGetKey(state->window, GLFW_KEY_RIGHT) == GLFW_PRESS ?
+		key_advance_state(state->keys.right) : UNPRESSED;
+
+	for (int i = 1; i < 3; i++) {
+		Direction dir1 = snake->direction[i - 1];
+		Direction dir2 = snake->direction[i];
+		if (dir1 == LEFT || dir1 == RIGHT) {
+			if (state->keys.up == PRESSING) {
+				snake->direction[i] = UP;
+			} else if (state->keys.down == PRESSING) {
+				snake->direction[i] = DOWN;
+			}
+		} else {
+			if (state->keys.left == PRESSING) {
+				snake->direction[i] = LEFT;
+			} else if (state->keys.right == PRESSING) {
+				snake->direction[i] = RIGHT;
+			}
 		}
-		if (snake->nextDirection != snake->direction) {
+		if (i == 1 && dir2 != snake->direction[i]) {
+			snake->direction[i + 1] = snake->direction[i];
+		}
+	}
+
+	if (cycleT == 0) {
+		if (snake->growing > 0) {
+			snake->growing -= 1;
+		}
+		if (snake->direction[0] != snake->direction[1]) {
 			Point p = snake_get_point(*snake, 0);
 			p.x = roundf(p.x);
 			p.y = roundf(p.y);
 			snake_set_point(snake, 0, p);
 			snake_unshift_point(snake, p);
-			snake->direction = snake->nextDirection;
+			snake->direction[0] = snake->direction[1];
+			snake->direction[1] = snake->direction[2];
 		}
 	}
 
 	Point head, tail1, tail2;
 	head = snake_get_point(*snake, 0);
-	float distance = (float)dt * rate;
+	float distance = (float)dt * snake->rate;
+	Direction dir = snake->direction[0];
 	if (dir == UP) {
 		head.y += distance;
 	} else if (dir == DOWN) {
@@ -154,10 +209,12 @@ void update_state(GameState* state, const double t, const double dt) {
 
 	if (cycleT == 0 && points_eq(snake_get_point(*snake, 0), state->apple.pos)) {
 		state->apple = make_apple();
-		snakeTailGrows += snakeTailGrowRate;
+		snake->points += 1;
+		snake->growing += 5 + snake->points;
+		snake->rate *= 1.1f;
 	}
 
-	if (snakeTailGrows == 0) {
+	if (snake->growing == 0) {
 		tail1 = snake_rget_point(*snake, 0);
 		tail2 = rounded_point(snake_rget_point(*snake, 1));
 		if (tail1.x != tail2.x) {
@@ -205,6 +262,10 @@ void draw_rectangle(Point a, Point b) {
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
+void draw_circle(Point c, float r) {
+	draw_rectangle((Point) { c.x - r, c.y - r }, (Point) { c.x + r, c.y + r });
+}
+
 void render_snake(Snake snake) {
 	glUseProgram(snakeShaderProgram);
 	float snake_w = scale(0, BOARD_WIDTH, 0, 2, 1);
@@ -216,7 +277,12 @@ void render_snake(Snake snake) {
 
 void render_apple(Apple apple) {
 	glUseProgram(appleShaderProgram);
-	draw_rectangle(apple.pos, apple.pos);
+	draw_circle((Point) { apple.pos.x + 0.5f, apple.pos.y + 0.5f }, 0.5f);
+}
+
+void render_arena() {
+	glUseProgram(arenaShaderProgram);
+	draw_raw_rectangle(arena[0], arena[1]);
 }
 
 void render_frame(GameState state) {
@@ -224,6 +290,7 @@ void render_frame(GameState state) {
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	render_arena();
 	render_snake(state.snake);
 	render_apple(state.apple);
 
@@ -282,6 +349,10 @@ GLFWwindow* getWindow() {
 	glfwMakeContextCurrent(window); // Initialize GLEW
 	// Ensure we can capture the escape key being pressed below
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+
+	set_arena(window, 0, 0);
+	glfwSetWindowSizeCallback(window, set_arena);
+
 	return window;
 }
 
@@ -301,6 +372,7 @@ int main(void) {
 	GameState state;
 	state.snake = make_snake();
 	state.apple = make_apple();
+	state.keys = (Keys) { UNPRESSED, UNPRESSED, UNPRESSED, UNPRESSED };
 	state.window = window;
 
 	opengl_setup();

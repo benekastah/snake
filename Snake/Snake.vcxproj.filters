@@ -56,5 +56,11 @@
     <None Include="apple.vertexshader">
       <Filter>Source Files\Vertex Shaders</Filter>
     </None>
+    <None Include="arena.fragmentshader">
+      <Filter>Source Files\Fragment Shaders</Filter>
+    </None>
+    <None Include="arena.vertexshader">
+      <Filter>Source Files\Vertex Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

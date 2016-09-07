@@ -8,6 +8,12 @@
 
 #include "util.h"
 
+double now() {
+	LARGE_INTEGER now;
+	QueryPerformanceCounter(&now);
+	return now.QuadPart;
+}
+
 double time_since_start() {
 	static int initialized = 0;
 	static LARGE_INTEGER start, freq;
@@ -57,6 +63,10 @@ float scale(float min1, float max1, float min2, float max2, float val) {
 }
 
 float randf_btwn(float min, float max) {
+	static initialized = false;
+	if (!initialized) {
+		srand((unsigned int)now());
+	}
 	return scale(0, RAND_MAX, min, max, (float)rand());
 }
 

@@ -12,16 +12,20 @@ typedef struct { float x; float y; } Point;
 bool points_eq(Point a, Point b);
 Point rand_point();
 Point rounded_point(Point p);
+Point scale_point(Point min1, Point max1, Point min2, Point max2, Point value);
 
 typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
 
 // SNEK
 typedef struct {
 	Point lines[SNAKE_MAX_POINTS];
+	Direction direction[3];
+	bool alive;
 	unsigned int length;
 	unsigned int start;
-	Direction direction;
-	Direction nextDirection;
+	unsigned int growing;
+	unsigned int points;
+	float rate;
 } Snake;
 
 Snake make_snake();

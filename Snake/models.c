@@ -21,14 +21,26 @@ Point rounded_point(Point p) {
 	return p;
 }
 
+Point scale_point(Point min1, Point max1, Point min2, Point max2, Point value) {
+	return (Point) {
+		scale(min1.x, max1.x, min2.x, max2.x, value.x),
+		scale(min1.y, max1.y, min2.y, max2.y, value.y)
+	};
+}
+
 Snake make_snake() {
 	Snake snake;
+	snake.rate = 7.0;
 	snake.lines[0] = (Point) { 3, 7 };
 	snake.lines[1] = (Point) { 3, 3 };
 	snake.start = 0;
 	snake.length = 2;
-	snake.direction = UP;
-	snake.nextDirection = UP;
+	snake.direction[0] = UP;
+	snake.direction[1] = snake.direction[0];
+	snake.direction[2] = snake.direction[0];
+	snake.growing = 0;
+	snake.points = 0;
+	snake.alive = true;
 	return snake;
 }
 

@@ -8,8 +8,17 @@
 
 #include "models.h"
 
+typedef enum { UNPRESSED, PRESSING, PRESSED } KeyState;
+
+KeyState key_advance_state(KeyState ks);
+
+typedef struct {
+	KeyState up, down, left, right;
+} Keys;
+
 typedef struct {
 	Snake snake;
 	Apple apple;
+	Keys keys;
 	GLFWwindow* window;
 } GameState;
