@@ -344,6 +344,7 @@ GLFWwindow* getWindow() {
 	glfwMakeContextCurrent(window); // Initialize GLEW
 	// Ensure we can capture the escape key being pressed below
 	glfwSetInputMode(window, GLFW_STICKY_KEYS, GL_TRUE);
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
 
 	set_arena(window, 0, 0);
 	glfwSetWindowSizeCallback(window, set_arena);
