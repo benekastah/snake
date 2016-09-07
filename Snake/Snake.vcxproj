@@ -120,10 +120,6 @@
     <ClInclude Include="util.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="apple.fragmentshader" />
-    <None Include="apple.vertexshader" />
-    <None Include="arena.fragmentshader" />
-    <None Include="arena.vertexshader" />
     <None Include="packages.config" />
     <None Include="snake.fragmentshader" />
     <None Include="snake.vertexshader" />

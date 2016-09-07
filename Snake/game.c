@@ -13,9 +13,8 @@ GLuint ebo;
 GLuint vbo;
 GLenum glErr;
 
-GLuint snakeShaderProgram;
-GLuint appleShaderProgram;
-GLuint arenaShaderProgram;
+GLuint shaderProgram;
+GLuint colorUniform;
 
 GLuint create_shader_program(char* vertexShaderFile, char* fragmentShaderFile) {
 	char* shaderSrc;
@@ -26,7 +25,7 @@ GLuint create_shader_program(char* vertexShaderFile, char* fragmentShaderFile) {
 	glCompileShader(vertexShader);
 	free(shaderSrc);
 
-	shaderSrc = read_file("apple.fragmentshader");
+	shaderSrc = read_file(fragmentShaderFile);
 	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
 	glShaderSource(fragmentShader, 1, &shaderSrc, NULL);
 	glCompileShader(fragmentShader);
@@ -57,12 +56,12 @@ void opengl_setup() {
 
 	char* shaderSrc;
 
-	snakeShaderProgram = create_shader_program("snake.vertexshader", "snake.fragmentshader");
-	appleShaderProgram = create_shader_program("apple.vertexshader", "apple.fragmentshader");
-	arenaShaderProgram = create_shader_program("arena.vertexshader", "arena.fragmentshader");
+	shaderProgram = create_shader_program("snake.vertexshader", "snake.fragmentshader");
+	colorUniform = glGetUniformLocation(shaderProgram, "color");
+	glUseProgram(shaderProgram);
 
 	// Specify the layout of the vertex data
-	GLint posAttrib = glGetAttribLocation(snakeShaderProgram, "position");
+	GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
 	glEnableVertexAttribArray(posAttrib);
 	glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE,
 		2 * sizeof(float), 0);
@@ -81,7 +80,7 @@ void set_arena(GLFWwindow* window, int width, int height) {
 	if (width == 0 && height == 0) {
 		glfwGetWindowSize(window, &width, &height);
 	}
-	float pad = 10;
+	const float pad = 60;
 	float w = (float) width;
 	float h = (float) height;
 	arena[0] = (Point) {
@@ -231,20 +230,18 @@ void update_state(GameState* state, const double t, const double dt) {
 			snake_rset_point(snake, 0, tail1);
 		}
 	}
+
+	if (detect_collision(*snake)) {
+		state->snake = make_snake();
+	}
 }
 
 void draw_rectangle(Point a, Point b) {
-	static float w = 0;
-	static float h = 0;
-	if (w == 0) {
-		w = scale(0, BOARD_WIDTH, 0, 2, 1);
-		h = scale(0, BOARD_HEIGHT, 0, 2, 1);
-	}
-	
-	Point a1 = scale_screen(a);
-	Point a2 = (Point) { a1.x + w, a1.y + h };
-	Point b1 = scale_screen(b);
-	Point b2 = (Point) { b1.x + w, b1.y + h };
+	Point halfCell = (Point) { 0.5f, 0.5f };
+	Point a1 = scale_screen(subtract_points(a, halfCell));
+	Point a2 = scale_screen(add_points(a, halfCell));
+	Point b1 = scale_screen(subtract_points(b, halfCell));
+	Point b2 = scale_screen(add_points(b, halfCell));
 
 	GLuint elements[6] = { 0, 1, 2, 2, 3, 0 };
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
@@ -262,12 +259,8 @@ void draw_rectangle(Point a, Point b) {
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 }
 
-void draw_circle(Point c, float r) {
-	draw_rectangle((Point) { c.x - r, c.y - r }, (Point) { c.x + r, c.y + r });
-}
-
 void render_snake(Snake snake) {
-	glUseProgram(snakeShaderProgram);
+	glUniform3f(colorUniform, 1.0f, 1.0f, 0.0f);
 	float snake_w = scale(0, BOARD_WIDTH, 0, 2, 1);
 	float snake_h = scale(0, BOARD_HEIGHT, 0, 2, 1);
 	for (unsigned int i = 1; i < snake.length; i++) {
@@ -276,13 +269,13 @@ void render_snake(Snake snake) {
 }
 
 void render_apple(Apple apple) {
-	glUseProgram(appleShaderProgram);
-	draw_circle((Point) { apple.pos.x + 0.5f, apple.pos.y + 0.5f }, 0.5f);
+	glUniform3f(colorUniform, 1.0f, 0.0f, 0.0f);
+	draw_rectangle(apple.pos, apple.pos);
 }
 
 void render_arena() {
-	glUseProgram(arenaShaderProgram);
-	draw_raw_rectangle(arena[0], arena[1]);
+	glUniform3f(colorUniform, 0.2f, 0.2f, 0.2f);
+	draw_rectangle((Point) { 0, 0 }, (Point) { BOARD_WIDTH, BOARD_HEIGHT });
 }
 
 void render_frame(GameState state) {
@@ -340,7 +333,9 @@ GLFWwindow* getWindow() {
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE); //We don't want the old OpenGL 
 
 	// Open a window and create its OpenGL context
-	GLFWwindow* window = glfwCreateWindow(1024, 768, "Tutorial 01", NULL, NULL);
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "Snake", monitor, NULL);
 	if (window == NULL) {
 		fprintf(stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n");
 		glfwTerminate();

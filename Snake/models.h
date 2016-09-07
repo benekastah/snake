@@ -13,6 +13,8 @@ bool points_eq(Point a, Point b);
 Point rand_point();
 Point rounded_point(Point p);
 Point scale_point(Point min1, Point max1, Point min2, Point max2, Point value);
+Point add_points(Point a, Point b);
+Point subtract_points(Point a, Point b);
 
 typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
 

@@ -28,6 +28,18 @@ Point scale_point(Point min1, Point max1, Point min2, Point max2, Point value) {
 	};
 }
 
+Point add_points(Point a, Point b) {
+	a.x += b.x;
+	a.y += b.y;
+	return a;
+}
+
+Point subtract_points(Point a, Point b) {
+	a.x -= b.x;
+	a.y -= b.y;
+	return a;
+}
+
 Snake make_snake() {
 	Snake snake;
 	snake.rate = 7.0;
