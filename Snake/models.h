@@ -20,14 +20,14 @@ typedef enum { UP, DOWN, LEFT, RIGHT } Direction;
 
 // SNEK
 typedef struct {
-	Point lines[SNAKE_MAX_POINTS];
-	Direction direction[3];
-	bool alive;
-	unsigned int length;
-	unsigned int start;
-	unsigned int growing;
-	unsigned int points;
-	float rate;
+    Point lines[SNAKE_MAX_POINTS];
+    Direction direction[3];
+    bool alive;
+    unsigned int length;
+    unsigned int start;
+    unsigned int growing;
+    unsigned int points;
+    float rate;
 } Snake;
 
 Snake make_snake();
@@ -44,7 +44,7 @@ void snake_unshift_point(Snake* snake, Point p);
 
 // APPLE
 typedef struct {
-	Point pos;
+    Point pos;
 } Apple;
 
 Apple make_apple();
